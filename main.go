@@ -1,5 +1,7 @@
 package main
 
+// import "github.com/dfang/qor-demo/config/bindatafs"
+
 import (
   "fmt"
   "net/http"
@@ -7,10 +9,23 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/qor/auth"
 	"github.com/qor/auth/auth_identity"
-	"github.com/qor/auth/providers/password"
+	// "github.com/qor/auth/providers/password"
+  "github.com/qor/auth_themes/clean"
 	"github.com/qor/session/manager"
+  "github.com/qor/mailer"
+  "github.com/qor/mailer/logger"
+  // "github.com/qor/render"
+  "github.com/qor/redirect_back"
 
   _ "github.com/mattn/go-sqlite3"
+)
+
+var (
+  Mailer         *mailer.Mailer
+  RedirectBack   = redirect_back.New(&redirect_back.Config{
+		SessionManager:  manager.SessionManager,
+		IgnoredPrefixes: []string{"/auth"},
+	})
 )
 
 var (
@@ -18,8 +33,13 @@ var (
 	gormDB, _ = gorm.Open("sqlite3", "sample.db")
 
 	// Initialize Auth with configuration
-	Auth = auth.New(&auth.Config{
-		DB: gormDB,
+  Auth = clean.New(&auth.Config{
+    DB:         gormDB,
+    // NO NEED TO CONFIG RENDER, AS IT'S CONFIGED IN CLEAN THEME
+    // Render:     render.New(&render.Config{AssetFileSystem: bindatafs.AssetFS.NameSpace("auth")}),
+    Mailer:     Mailer,
+    UserModel:  User{},
+    Redirector: auth.Redirector{RedirectBack: RedirectBack},
   })
 )
 
@@ -32,9 +52,13 @@ func init() {
   gormDB.AutoMigrate(&auth_identity.AuthIdentity{})
   gormDB.AutoMigrate(&User{})
 
-	// Register Auth providers
-	// Allow use username/password
-  Auth.RegisterProvider(password.New(&password.Config{}))
+	// Register Auth providers, Allow use username/password
+  // NO NEED TO REGISTER, AS IT'S REGISTERED IN CLEAN THEME
+  // Auth.RegisterProvider(password.New(&password.Config{}))
+
+  Mailer = mailer.New(&mailer.Config{
+		Sender: logger.New(&logger.Config{}),
+	})
 }
 
 func main() {
